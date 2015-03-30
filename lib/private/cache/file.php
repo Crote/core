@@ -66,13 +66,10 @@ class File {
 	 */
 	public function get($key) {
 		$result = null;
-		$proxyStatus = \OC_FileProxy::$enabled;
-		\OC_FileProxy::$enabled = false;
 		if ($this->hasKey($key)) {
 			$storage = $this->getStorage();
 			$result = $storage->file_get_contents($key);
 		}
-		\OC_FileProxy::$enabled = $proxyStatus;
 		return $result;
 	}
 
@@ -84,13 +81,10 @@ class File {
 	 */
 	public function size($key) {
 		$result = 0;
-		$proxyStatus = \OC_FileProxy::$enabled;
-		\OC_FileProxy::$enabled = false;
 		if ($this->hasKey($key)) {
 			$storage = $this->getStorage();
 			$result = $storage->filesize($key);
 		}
-		\OC_FileProxy::$enabled = $proxyStatus;
 		return $result;
 	}
 
@@ -100,15 +94,12 @@ class File {
 	public function set($key, $value, $ttl = 0) {
 		$storage = $this->getStorage();
 		$result = false;
-		$proxyStatus = \OC_FileProxy::$enabled;
-		\OC_FileProxy::$enabled = false;
 		if ($storage and $storage->file_put_contents($key, $value)) {
 			if ($ttl === 0) {
 				$ttl = 86400; // 60*60*24
 			}
 			$result = $storage->touch($key, time() + $ttl);
 		}
-		\OC_FileProxy::$enabled = $proxyStatus;
 		return $result;
 	}
 
