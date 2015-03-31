@@ -183,6 +183,9 @@ class Test_User_Ldap_Direct extends \PHPUnit_Framework_TestCase {
 		$this->assertFalse($result);
 	}
 
+	/**
+	 * @expectedException \Exception
+	 */
 	public function testCheckPasswordNoDisplayName() {
 		$access = $this->getAccessMock();
 
@@ -195,7 +198,6 @@ class Test_User_Ldap_Direct extends \PHPUnit_Framework_TestCase {
 		\OC_User::useBackend($backend);
 
 		$result = $backend->checkPassword('roland', 'dt19');
-		$this->assertFalse($result);
 	}
 
 	public function testCheckPasswordPublicAPI() {
@@ -396,25 +398,59 @@ class Test_User_Ldap_Direct extends \PHPUnit_Framework_TestCase {
 		$this->prepareMockForUserExists($access);
 
 		$access->expects($this->any())
-			   ->method('readAttribute')
-			   ->will($this->returnCallback(function($dn) {
-					if($dn === 'dnOfRoland,dc=test') {
-						return array();
-					}
-					return false;
-			   }));
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn) {
+				if($dn === 'dnOfRoland,dc=test') {
+					return array();
+				}
+				return false;
+			}));
 
 		//test for existing user
 		$result = $backend->userExists('gunslinger');
 		$this->assertTrue($result);
+	}
+
+	/**
+	 * @expectedException \Exception
+	 */
+	public function testUserExistsForDeleted() {
+		$access = $this->getAccessMock();
+		$backend = new UserLDAP($access);
+		$this->prepareMockForUserExists($access);
+
+		$access->expects($this->any())
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn) {
+				if($dn === 'dnOfRoland,dc=test') {
+					return array();
+				}
+				return false;
+			}));
 
 		//test for deleted user
 		$result = $backend->userExists('formerUser');
-		$this->assertFalse($result);
+	}
+
+	/**
+	 * @expectedException \Exception
+	 */
+	public function testUserExistsForNeverExisting() {
+		$access = $this->getAccessMock();
+		$backend = new UserLDAP($access);
+		$this->prepareMockForUserExists($access);
+
+		$access->expects($this->any())
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn) {
+				if($dn === 'dnOfRoland,dc=test') {
+					return array();
+				}
+				return false;
+			}));
 
 		//test for never-existing user
 		$result = $backend->userExists('mallory');
-		$this->assertFalse($result);
 	}
 
 	public function testUserExistsPublicAPI() {
@@ -424,25 +460,61 @@ class Test_User_Ldap_Direct extends \PHPUnit_Framework_TestCase {
 		\OC_User::useBackend($backend);
 
 		$access->expects($this->any())
-			   ->method('readAttribute')
-			   ->will($this->returnCallback(function($dn) {
-					if($dn === 'dnOfRoland,dc=test') {
-						return array();
-					}
-					return false;
-			   }));
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn) {
+				if($dn === 'dnOfRoland,dc=test') {
+					return array();
+				}
+				return false;
+			}));
 
 		//test for existing user
 		$result = \OCP\User::userExists('gunslinger');
 		$this->assertTrue($result);
+	}
+
+	/**
+	 * @expectedException \Exception
+	 */
+	public function testUserExistsPublicAPIForDeleted() {
+		$access = $this->getAccessMock();
+		$backend = new UserLDAP($access);
+		$this->prepareMockForUserExists($access);
+		\OC_User::useBackend($backend);
+
+		$access->expects($this->any())
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn) {
+				if($dn === 'dnOfRoland,dc=test') {
+					return array();
+				}
+				return false;
+			}));
 
 		//test for deleted user
 		$result = \OCP\User::userExists('formerUser');
-		$this->assertFalse($result);
+	}
+
+	/**
+	 * @expectedException \Exception
+	 */
+	public function testUserExistsPublicAPIForNeverExisting() {
+		$access = $this->getAccessMock();
+		$backend = new UserLDAP($access);
+		$this->prepareMockForUserExists($access);
+		\OC_User::useBackend($backend);
+
+		$access->expects($this->any())
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn) {
+				if($dn === 'dnOfRoland,dc=test') {
+					return array();
+				}
+				return false;
+			}));
 
 		//test for never-existing user
 		$result = \OCP\User::userExists('mallory');
-		$this->assertFalse($result);
 	}
 
 	public function testDeleteUser() {
@@ -454,50 +526,100 @@ class Test_User_Ldap_Direct extends \PHPUnit_Framework_TestCase {
 		$this->assertFalse($result);
 	}
 
-	public function testGetHome() {
+	public function testGetHomeAbsolutePath() {
 		$access = $this->getAccessMock();
 		$backend = new UserLDAP($access);
 		$this->prepareMockForUserExists($access);
 
 		$access->connection->expects($this->any())
-			   ->method('__get')
-			   ->will($this->returnCallback(function($name) {
-					if($name === 'homeFolderNamingRule') {
-						return 'attr:testAttribute';
-					}
-					return null;
-			   }));
+			->method('__get')
+			->will($this->returnCallback(function($name) {
+				if($name === 'homeFolderNamingRule') {
+					return 'attr:testAttribute';
+				}
+				return null;
+			}));
 
 		$access->expects($this->any())
-			   ->method('readAttribute')
-			   ->will($this->returnCallback(function($dn, $attr) {
-					switch ($dn) {
-						case 'dnOfRoland,dc=test':
-							if($attr === 'testAttribute') {
-								return array('/tmp/rolandshome/');
-							}
-							return array();
-							break;
-						case 'dnOfLadyOfShadows,dc=test':
-							if($attr === 'testAttribute') {
-								return array('susannah/');
-							}
-							return array();
-							break;
-						default:
-							return false;
-				   }
-			   }));
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn, $attr) {
+				switch ($dn) {
+					case 'dnOfRoland,dc=test':
+						if($attr === 'testAttribute') {
+							return array('/tmp/rolandshome/');
+						}
+						return array();
+						break;
+					default:
+						return false;
+				}
+			}));
 
 		//absolut path
 		$result = $backend->getHome('gunslinger');
 		$this->assertEquals('/tmp/rolandshome/', $result);
+	}
 
+	public function testGetHomeDatadirRelative() {
+		$access = $this->getAccessMock();
+		$backend = new UserLDAP($access);
+		$this->prepareMockForUserExists($access);
+
+		$access->connection->expects($this->any())
+			->method('__get')
+			->will($this->returnCallback(function($name) {
+				if($name === 'homeFolderNamingRule') {
+					return 'attr:testAttribute';
+				}
+				return null;
+			}));
+
+		$access->expects($this->any())
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn, $attr) {
+				switch ($dn) {
+					case 'dnOfLadyOfShadows,dc=test':
+						if($attr === 'testAttribute') {
+							return array('susannah/');
+						}
+						return array();
+						break;
+					default:
+						return false;
+				}
+			}));
 		//datadir-relativ path
 		$result = $backend->getHome('ladyofshadows');
 		$datadir = \OCP\Config::getSystemValue('datadirectory',
-											   \OC::$SERVERROOT.'/data');
+			\OC::$SERVERROOT.'/data');
 		$this->assertEquals($datadir.'/susannah/', $result);
+	}
+
+	/**
+	 * @expectedException \Exception
+	 */
+	public function testGetHomeNoPath() {
+		$access = $this->getAccessMock();
+		$backend = new UserLDAP($access);
+		$this->prepareMockForUserExists($access);
+
+		$access->connection->expects($this->any())
+			->method('__get')
+			->will($this->returnCallback(function($name) {
+				if($name === 'homeFolderNamingRule') {
+					return 'attr:testAttribute';
+				}
+				return null;
+			}));
+
+		$access->expects($this->any())
+			->method('readAttribute')
+			->will($this->returnCallback(function($dn, $attr) {
+				switch ($dn) {
+					default:
+						return false;
+				}
+			}));
 
 		//no path at all – triggers OC default behaviour
 		$result = $backend->getHome('newyorker');
@@ -548,6 +670,26 @@ class Test_User_Ldap_Direct extends \PHPUnit_Framework_TestCase {
 
 	public function testGetDisplayNamePublicAPI() {
 		$access = $this->getAccessMock();
+		$access->expects($this->any())
+			->method('username2dn')
+			->will($this->returnCallback(function($uid) {
+				switch ($uid) {
+					case 'gunslinger':
+						return 'dnOfRoland,dc=test';
+						break;
+					case 'formerUser':
+						return 'dnOfFormerUser,dc=test';
+						break;
+					case 'newyorker':
+						return 'dnOfNewYorker,dc=test';
+						break;
+					case 'ladyofshadows':
+						return 'dnOfLadyOfShadows,dc=test';
+						break;
+					default:
+						return false;
+				}
+			}));
 		$this->prepareAccessForGetDisplayName($access);
 		$backend = new UserLDAP($access);
 		$this->prepareMockForUserExists($access);
