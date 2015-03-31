@@ -126,9 +126,12 @@ function execute_tests {
 		echo "Fire up the oracle docker"
 		DOCKER_CONTAINER_ID=`docker run -d deepdiver/docker-oracle-xe-11g`
 		DATABASEHOST=`docker inspect $DOCKER_CONTAINER_ID | grep IPAddress | cut -d '"' -f 4`
-
-		echo "Waiting 60 seconds for Oracle initialization ... "
-		sleep 60
+		DATABASEPORT='49161'
+		echo "Waiting for Oracle to come up on $DATABASEHOST:$DATABASEPORT ..."
+		while `! nc -z "$DATABASEHOST" "$DATABASEPORT"`; do
+			sleep 1
+		done
+		sleep 1
 
 		DATABASEUSER=autotest
 		DATABASENAME='XE'
